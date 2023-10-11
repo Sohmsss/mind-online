@@ -1,0 +1,37 @@
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f0f0f0;
+}
+
+#game-container {
+    margin: auto;
+    width: 80%;
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.card {
+    width: 50px;
+    height: 80px;
+    border: 1px solid #000;
+    border-radius: 4px;
+    display: inline-block;
+    margin: 5px;
+    text-align: center;
+    line-height: 80px;
+    font-size: 24px;
+    cursor: pointer;
+}
+
+#status-bar {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+#message {
+    margin-top: 10px;
+    font-weight: bold;
+}
