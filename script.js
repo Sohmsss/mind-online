@@ -1,3 +1,5 @@
+const socket = io();
+
 let cards = [];
 let cardContainer = document.getElementById('card-container');
 let levelElement = document.getElementById('level');
@@ -13,11 +15,11 @@ function generateCards() {
         let randomNumber = Math.floor(Math.random() * 100) + 1;
         if (cards.indexOf(randomNumber) === -1) cards.push(randomNumber);
     }
-    cards.sort((a, b) => a - b);  // Sort the cards in ascending order for checking later
+    cards.sort((a, b) => a - b);
 }
 
 function displayCards() {
-    cardContainer.innerHTML = '';  // Clear the card container
+    cardContainer.innerHTML = '';  // Clear the card 
     cards.forEach(card => {
         let cardElement = document.createElement('div');
         cardElement.className = 'card';
@@ -72,3 +74,8 @@ function updateStatusBar() {
     levelElement.textContent = 'Level: ' + level;
     livesElement.textContent = 'Lives: ' + lives;
 }
+
+document.addEventListener('DOMContentLoaded', (event) => {
+    const startButton = document.querySelector('button');
+    startButton.addEventListener('click', startGame);
+});
