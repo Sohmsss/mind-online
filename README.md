@@ -2,7 +2,7 @@
 
 ## Overview
 
-This is a simple multiplayer card matching game developed as part of the Mind Online project. The game allows players to create and join game rooms to play together. The project uses HTML, CSS, JavaScript, Express.js, and Socket.IO to facilitate real-time communication.
+This is a simple multiplayer card matching game developed as a homage to the card game 'The Mind'. The game allows players to create and join game rooms to play together. The project uses HTML, CSS, JavaScript, Express.js, and Socket.IO to facilitate real-time communication.
 
 ## Features
 
