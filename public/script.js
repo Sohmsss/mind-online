@@ -1,0 +1,153 @@
+//const socket = io();
+
+let cards = [];
+let cardContainer = document.getElementById('card-container');
+let levelElement = document.getElementById('level');
+let livesElement = document.getElementById('lives');
+let messageElement = document.getElementById('message');
+let playedCardContainer = document.getElementById('played-card-container');
+let lastPlayedCardContainer = document.getElementById('last-played-card-container');
+let level = 1;
+let lives = 3;
+let playedCards = [];
+let currentRoomId = null;
+const socket = io.connect('http://localhost:3000');
+
+document.getElementById('createGame').addEventListener('click', () => {
+    socket.emit('createGame');
+});
+
+socket.on('newGame', (data) => {
+    currentRoomId = data.roomId;
+    alert(`New game created! Room ID is ${currentRoomId}. Share this ID with your friends to join the game.`);
+});
+
+document.getElementById('joinGame').addEventListener('click', () => {
+    const roomId = document.getElementById('roomId').value;
+    socket.emit('joinGame', { roomId });
+});
+
+socket.on('playerJoined', (data) => {
+    currentRoomId = data.roomId;  // Update the room ID if you are the one joining
+    alert(`A new player has joined the game. Total players: ${data.players.length}`);
+});
+
+document.getElementById('startGame').addEventListener('click', () => {
+    if (currentRoomId) {
+        socket.emit('startGame', { roomId: currentRoomId });
+    } else {
+        alert("You're not in a game room!");
+    }
+});
+
+
+
+
+// Handling new game creation
+socket.on('newGame', (data) => {
+    alert(`New game created! Room ID is ${data.roomId}. Share this ID with your friends to join the game.`);
+});
+
+// Handling a new player joining the game
+socket.on('playerJoined', (data) => {
+    alert(`A new player has joined the game. Total players: ${data.players.length}`);
+});
+
+
+function generateCards() {
+    cards = [];
+    while (cards.length < level) {
+        let randomNumber = Math.floor(Math.random() * 100) + 1;
+        if (cards.indexOf(randomNumber) === -1) cards.push(randomNumber);
+    }
+    cards.sort((a, b) => a - b);
+}
+
+function displayCards() {
+    cardContainer.innerHTML = '';
+    cards.forEach(card => {
+        let cardElement = document.createElement('div');
+        cardElement.className = 'card';
+        cardElement.textContent = card;
+        cardElement.onclick = () => playCard(card);
+        cardContainer.appendChild(cardElement);
+    });
+}
+
+function startGame() {
+    if (lives === 0) {
+        level = 1;
+        lives = 3;
+    }
+    playedCards = [];
+    updateStatusBar();
+    generateCards();
+    displayCards();
+}
+
+
+function playCard(card) {
+    let index = cards.indexOf(card);
+    if (index !== -1) {
+        playedCards.push(cards.splice(index, 1)[0]);
+        displayCards();
+        checkOrder();
+    }
+
+    // Create and append the new last played card element
+    let lastPlayedCardElement = document.createElement('div');
+    lastPlayedCardElement.className = 'last-played-card';
+    lastPlayedCardElement.textContent = card;
+    lastPlayedCardContainer.appendChild(lastPlayedCardElement);
+
+    // Apply stacking effect
+    applyStackingEffect();
+}
+
+// This function applies a stacking effect to the cards
+function applyStackingEffect() {
+    let lastPlayedCards = lastPlayedCardContainer.querySelectorAll('.last-played-card');
+    lastPlayedCards.forEach((card, index) => {
+        card.style.zIndex = index;
+        card.style.transform = `translate(${index * 5}px, ${index * 5}px)`;
+    });
+}
+
+
+
+
+
+function checkOrder() {
+    if (playedCards.length === level) {
+        let sortedPlayedCards = [...playedCards].sort((a, b) => a - b);
+        if (JSON.stringify(sortedPlayedCards) === JSON.stringify(playedCards)) {
+            // Correct order
+            messageElement.textContent = 'Success! Moving to next level.';
+            level++;
+            playedCards = [];
+            setTimeout(startGame, 2000);  // Move to next level after 2 seconds
+        } else {
+            // Incorrect order
+            messageElement.textContent = 'Incorrect order. Try again.';
+            lives--;
+            if (lives === 0) {
+                messageElement.textContent = 'Game Over! Click "Start Game" to try again.';
+                setTimeout(startGame, 2000);  // Restart the game after 2 seconds
+            } else {
+                playedCards = [];
+                setTimeout(startGame, 2000);  // Restart level after 2 seconds
+            }
+        }
+        updateStatusBar();
+    }
+}
+
+function updateStatusBar() {
+    levelElement.textContent = 'Level: ' + level;
+    livesElement.textContent = 'Lives: ' + lives;
+}
+
+document.addEventListener('DOMContentLoaded', (event) => {
+    const startButton = document.querySelector('button');
+    startButton.addEventListener('click', startGame);
+});
