@@ -52,7 +52,6 @@ io.on('connection', (socket) => {
         }
     });
 
-
     socket.on('disconnect', () => {
         console.log('User disconnected');
         for (let roomId in rooms) {
@@ -81,7 +80,7 @@ io.on('connection', (socket) => {
         const { card, roomId } = data;
         if (rooms[roomId]) {
             io.sockets.in(roomId).emit('updateCard', { card });
-            changeTurn(roomId); // Call the function to change the turn
+            changeTurn(roomId);
         }
     });
 });
