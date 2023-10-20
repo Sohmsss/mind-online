@@ -1,13 +1,10 @@
 const express = require('express');
 const http = require('http');
 const socketIO = require('socket.io');
-
 const app = express();
 
-// Serve static files from the 'public' directory
 app.use(express.static('public'));
 
-// Serve the HTML file
 app.get('/', (req, res) => {
     res.sendFile(__dirname + '/index.html');
 });
@@ -15,7 +12,6 @@ app.get('/', (req, res) => {
 const server = http.Server(app);
 const io = socketIO(server);
 
-// Generate a unique room ID
 function generateRoomId() {
     return Math.random().toString(36).substr(2, 5).toUpperCase();
 }
@@ -25,10 +21,8 @@ function changeTurn(roomId) {
     if (room) {
         const players = room.players;
         const gameState = room.gameState;
-
         gameState.turn = (gameState.turn + 1) % players.length;
         gameState.currentPlayer = players[gameState.turn];
-
         io.sockets.in(roomId).emit('gameStateUpdated', gameState);
     }
 }
@@ -37,8 +31,6 @@ let rooms = {};
 
 io.on('connection', (socket) => {
     console.log('New user connected with ID:', socket.id);
-
-
     socket.on('startGame', (data) => {
         const roomId = data.roomId;
         if (rooms[roomId]) {
