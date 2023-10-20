@@ -18,6 +18,10 @@ document.getElementById('createGame').addEventListener('click', () => {
     console.log('Create Game Clicked');
 });
 
+socket.on('connect', () => {
+    console.log('Connected to server with ID:', socket.id);
+});
+
 socket.on('newGame', (data) => {
     currentRoomId = data.roomId;
     alert(`New game created! Room ID is ${currentRoomId}. Share this ID with your friends to join the game.`);
@@ -26,11 +30,6 @@ socket.on('newGame', (data) => {
 document.getElementById('joinGame').addEventListener('click', () => {
     const roomId = document.getElementById('roomId').value;
     socket.emit('joinGame', { roomId });
-});
-
-socket.on('playerJoined', (data) => {
-    currentRoomId = data.roomId;  // Update the room ID if you are the one joining
-    alert(`A new player has joined the game. Total players: ${data.players.length}`);
 });
 
 document.getElementById('startGame').addEventListener('click', () => {
@@ -47,26 +46,19 @@ socket.on('roomCreated', (roomId) => {
     alert(`New game created! Room ID is ${roomId}. Share this ID with your friends to join the game.`);
 });
 
-socket.on('playerJoined', (data) => {
-    document.getElementById('room-id').textContent = data.roomId;
-    document.getElementById('game-container').style.display = 'block';
-    alert(`A new player has joined the game. Total players: ${data.players.length}`);
-});
-
-
-
-
-
-// Handling new game creation
 socket.on('newGame', (data) => {
     alert(`New game created! Room ID is ${data.roomId}. Share this ID with your friends to join the game.`);
 });
 
-// Handling a new player joining the game
 socket.on('playerJoined', (data) => {
-    alert(`A new player has joined the game. Total players: ${data.players.length}`);
+    console.log("Player Joined Event Triggered", data);
+    currentRoomId = data.roomId;
+    document.getElementById('room-id').textContent = data.roomId;
+    document.getElementById('game-container').style.display = 'block';
+    setTimeout(() => {
+        alert(`A new player has joined the game. Total players: ${data.players.length}`);
+    }, 1000);
 });
-
 
 function generateCards() {
     cards = [];
