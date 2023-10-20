@@ -15,6 +15,7 @@ const socket = io.connect('http://localhost:3000');
 
 document.getElementById('createGame').addEventListener('click', () => {
     socket.emit('createGame');
+    console.log('Create Game Clicked');
 });
 
 socket.on('newGame', (data) => {
@@ -39,6 +40,19 @@ document.getElementById('startGame').addEventListener('click', () => {
         alert("You're not in a game room!");
     }
 });
+
+socket.on('roomCreated', (roomId) => {
+    document.getElementById('room-id').textContent = roomId;
+    document.getElementById('game-container').style.display = 'block';
+    alert(`New game created! Room ID is ${roomId}. Share this ID with your friends to join the game.`);
+});
+
+socket.on('playerJoined', (data) => {
+    document.getElementById('room-id').textContent = data.roomId;
+    document.getElementById('game-container').style.display = 'block';
+    alert(`A new player has joined the game. Total players: ${data.players.length}`);
+});
+
 
 
 
@@ -70,7 +84,8 @@ function displayCards() {
         cardElement.className = 'card';
         cardElement.textContent = card;
         cardElement.onclick = () => playCard(card);
-        cardContainer.appendChild(cardElement);
+        cardContainer.appendChild(cardElement)
+        cardElement.setAttribute('data-card-value', card);
     });
 }
 
@@ -102,6 +117,7 @@ function playCard(card) {
 
     // Apply stacking effect
     applyStackingEffect();
+    socket.emit('cardPlayed', { card, roomId: currentRoomId });
 }
 
 // This function applies a stacking effect to the cards
@@ -140,6 +156,29 @@ function checkOrder() {
         }
         updateStatusBar();
     }
+}
+
+// Listening for the 'updateCard' event
+socket.on('updateCard', (data) => {
+    const { card } = data;
+    removeCardFromDisplay(card);
+    addCardToPlayedContainer(card);
+});
+
+// Function to remove card from display
+function removeCardFromDisplay(cardValue) {
+    const cardElement = cardContainer.querySelector(`[data-card-value="${cardValue}"]`);
+    if (cardElement) {
+        cardElement.remove();
+    }
+}
+
+// Function to add card to the played card container
+function addCardToPlayedContainer(cardValue) {
+    let playedCardElement = document.createElement('div');
+    playedCardElement.className = 'played-card';
+    playedCardElement.textContent = cardValue;
+    playedCardContainer.appendChild(playedCardElement);  // Assuming 'playedCardContainer' is a DOM element
 }
 
 function updateStatusBar() {
