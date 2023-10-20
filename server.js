@@ -15,6 +15,12 @@ app.get('/', (req, res) => {
 const server = http.Server(app);
 const io = socketIO(server);
 
+// Generate a unique room ID
+function generateRoomId() {
+    return Math.random().toString(36).substr(2, 5).toUpperCase();
+}
+
+
 let rooms = {};
 
 io.on('connection', (socket) => {
@@ -42,7 +48,39 @@ io.on('connection', (socket) => {
             io.sockets.in(roomId).emit('playerJoined', rooms[roomId]);
         }
     });
+
+    socket.on('disconnect', () => {
+        console.log('User disconnected');
+        // Remove this player from any rooms they were in
+        for (let roomId in rooms) {
+            const index = rooms[roomId].players.indexOf(socket.id);
+            if (index > -1) {
+                rooms[roomId].players.splice(index, 1);
+                io.sockets.in(roomId).emit('playerLeft', rooms[roomId]);
+            }
+        }
+    });
+
+    socket.on('createGame', () => {
+        const roomId = generateRoomId();
+        rooms[roomId] = { players: [socket.id] };
+        socket.join(roomId);
+        socket.emit('roomCreated', roomId);
+        console.log('Generated Room ID:', roomId);
+        console.log('Create Game Received');
+    });
+
+
+    socket.on('cardPlayed', (data) => {
+        const { card, roomId } = data;
+        io.sockets.in(roomId).emit('updateCard', { card });
+    });
+
+
+
 });
+
+
 
 server.listen(3000, () => {
     console.log('Server is running on port 3000');
