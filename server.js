@@ -29,32 +29,68 @@ function changeTurn(roomId) {
 
 let rooms = {};
 
+
 io.on('connection', (socket) => {
     console.log('New user connected with ID:', socket.id);
+
+    socket.on('error', (error) => {
+        console.error('Socket Error:', error);
+      });
+      
+
     socket.on('startGame', (data) => {
-        const roomId = data.roomId;
-        if (rooms[roomId]) {
-            io.sockets.in(roomId).emit('gameStarted', { message: 'Game has started' });
-        }
-    });
+    console.log('Received startGame event with data:', data);
+    const roomId = data.roomId;
+
+    if (rooms[roomId]) {
+        const players = rooms[roomId].players;
+        const playerCards = {};
+        players.forEach(playerId => {
+            const card = Math.floor(Math.random() * 100) + 1;
+            playerCards[playerId] = card;
+        });
+
+        rooms[roomId].gameState = {
+            turn: 0,
+            currentPlayer: players[0],
+            playerCards,
+            playedCards: []
+        };
+
+        players.forEach(playerId => {
+            const socket = io.sockets.sockets.get(playerId);
+            socket.emit('gameStarted', {
+                message: 'Game has started',
+                initialCard: playerCards[playerId],
+                gameState: rooms[roomId].gameState
+            });
+        });
+    } else {
+        console.log(`Room ${roomId} not found.`);
+    }
+});
 
     socket.on('disconnect', () => {
         console.log('User disconnected');
     });
 
-
     socket.on('joinGame', (data) => {
         const roomId = data.roomId;
+        console.log(`Attempting to join room ${roomId}. Current state:`, rooms[roomId]);
         if (rooms[roomId]) {
-            rooms[roomId].players.push(socket.id);
-            socket.join(roomId);
-            rooms[roomId].gameState.cards = rooms[roomId].gameState.cards || [];
-            rooms[roomId].gameState.playedCards = rooms[roomId].gameState.playedCards || [];
+            if (!rooms[roomId].players.includes(socket.id)) {
+                rooms[roomId].players.push(socket.id);
+                socket.join(roomId);
+            }
+            console.log(`After joining room ${roomId}, room state:`, rooms[roomId]);
             socket.emit('gameState', rooms[roomId].gameState);
-            io.sockets.in(roomId).emit('playerJoined', rooms[roomId]);
+            io.sockets.in(roomId).emit('playerJoined', { roomId, players: rooms[roomId].players });
             console.log(`Emitting gameState for new joiner in room ${roomId}`, rooms[roomId].gameState);
+        } else {
+            console.log(`Room with ID ${roomId} does not exist.`);
         }
     });
+    
     
     socket.on('disconnect', () => {
         console.log('User disconnected');
@@ -76,15 +112,17 @@ io.on('connection', (socket) => {
                 currentPlayer: socket.id,
                 level: 1,
                 lives: 3 
-            }
+            },
+            playedCards: []
         };
         socket.join(roomId);
-        socket.emit('roomCreated', roomId);
+        socket.emit('roomCreated', { roomId, gameState: rooms[roomId].gameState });        
     });
+    
 
     socket.on('cardPlayed', (data) => {
         const { card, roomId } = data;
-        const room = rooms[roomId]; // Get the room object
+        const room = rooms[roomId]; 
         
         if (room) {
             room.playedCards.push(card);
