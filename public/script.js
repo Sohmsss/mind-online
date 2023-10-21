@@ -39,7 +39,10 @@ document.getElementById('startGame').addEventListener('click', () => {
 });
 
 socket.on('roomCreated', (roomId) => {
+    console.log("Received roomCreated with ID:", roomId);
+    currentRoomId = roomId;
     document.getElementById('room-id').textContent = roomId;
+    document.getElementById('room-id').textContent = roomId || "Unknown Room";
     document.getElementById('game-container').style.display = 'block';
     alert(`New game created! Room ID is ${roomId}. Share this ID with your friends to join the game.`);
 });
@@ -49,9 +52,9 @@ socket.on('newGame', (data) => {
 });
 
 socket.on('playerJoined', (data) => {
-    console.log("Player Joined Event Triggered", data);
+    console.log("Received playerJoined with data:", data);
     currentRoomId = data.roomId;
-    document.getElementById('room-id').textContent = data.roomId;
+    document.getElementById('room-id').textContent = data.roomId || "Unknown Room";  
     document.getElementById('game-container').style.display = 'block';
     setTimeout(() => {
         alert(`A new player has joined the game. Total players: ${data.players.length}`);
@@ -138,12 +141,6 @@ function checkOrder() {
     }
 }
 
-socket.on('updateCard', (data) => {
-    const { card } = data;
-    removeCardFromDisplay(card);
-    addCardToPlayedContainer(card);
-});
-
 function removeCardFromDisplay(cardValue) {
     const cardElement = cardContainer.querySelector(`[data-card-value="${cardValue}"]`);
     if (cardElement) {
@@ -162,6 +159,34 @@ function updateStatusBar() {
     levelElement.textContent = 'Level: ' + level;
     livesElement.textContent = 'Lives: ' + lives;
 }
+
+socket.on('gameState', (data) => {
+    cards = data.cards || [];
+    playedCards = data.playedCards || [];
+    level = data.level || 1;
+    lives = data.lives || 3;
+    displayCards();
+    updateStatusBar();
+    console.log('Received gameState:', data);
+});
+
+
+socket.on('updateGameState', (updatedGameState) => {
+    cards = updatedGameState.cards;
+    playedCards = updatedGameState.playedCards;
+    level = updatedGameState.level;
+    lives = updatedGameState.lives;
+    displayCards();
+    updateStatusBar();
+});
+
+socket.on('updateCard', (data) => {
+    const { card } = data;
+    removeCardFromDisplay(card);
+    addCardToPlayedContainer(card);
+});
+
+console.log('Current gameState', rooms[roomId].gameState);
 
 document.addEventListener('DOMContentLoaded', (event) => {
     const startButton = document.querySelector('button');

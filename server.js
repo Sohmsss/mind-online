@@ -42,16 +42,20 @@ io.on('connection', (socket) => {
         console.log('User disconnected');
     });
 
+
     socket.on('joinGame', (data) => {
         const roomId = data.roomId;
         if (rooms[roomId]) {
             rooms[roomId].players.push(socket.id);
             socket.join(roomId);
-            console.log(`Server: Emitting playerJoined for room ${roomId}`);
+            rooms[roomId].gameState.cards = rooms[roomId].gameState.cards || [];
+            rooms[roomId].gameState.playedCards = rooms[roomId].gameState.playedCards || [];
+            socket.emit('gameState', rooms[roomId].gameState);
             io.sockets.in(roomId).emit('playerJoined', rooms[roomId]);
+            console.log(`Emitting gameState for new joiner in room ${roomId}`, rooms[roomId].gameState);
         }
     });
-
+    
     socket.on('disconnect', () => {
         console.log('User disconnected');
         for (let roomId in rooms) {
@@ -69,7 +73,9 @@ io.on('connection', (socket) => {
             players: [socket.id],
             gameState: {
                 turn: 0,
-                currentPlayer: socket.id
+                currentPlayer: socket.id,
+                level: 1,
+                lives: 3 
             }
         };
         socket.join(roomId);
@@ -78,8 +84,12 @@ io.on('connection', (socket) => {
 
     socket.on('cardPlayed', (data) => {
         const { card, roomId } = data;
-        if (rooms[roomId]) {
+        const room = rooms[roomId]; // Get the room object
+        
+        if (room) {
+            room.playedCards.push(card);
             io.sockets.in(roomId).emit('updateCard', { card });
+            io.sockets.in(roomId).emit('updateGameState', room);
             changeTurn(roomId);
         }
     });
