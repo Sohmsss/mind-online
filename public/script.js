@@ -22,7 +22,7 @@ socket.on('connect', () => {
 
 socket.on('connect_error', (error) => {
     console.error('Connection Error:', error);
-  });
+});
 
 socket.on('newGame', (data) => {
     currentRoomId = data.roomId;
@@ -36,13 +36,13 @@ document.getElementById('joinGame').addEventListener('click', () => {
 });
 
 document.getElementById('startGame').addEventListener('click', () => {
-    console.log('Start Game clicked. Current room ID:', currentRoomId);  // Debug line
+    console.log('Start Game clicked. Current room ID:', currentRoomId);
 
     if (currentRoomId) {
-        console.log('Emitting startGame event');  // Debug line
+        console.log('Emitting startGame event');
         socket.emit('startGame', { roomId: currentRoomId });
     } else {
-        console.log('No current room ID available');  // Debug line
+        console.log('No current room ID available');
         alert("You're not in a game room!");
     }
 });
@@ -51,14 +51,15 @@ function updateRoomIdDisplay(roomId) {
     document.getElementById('room-id').textContent = roomId || 'Unknown Room';
 }
 
-socket.on('roomCreated', (roomId) => {
-    console.log("Received roomCreated with ID:", roomId);
-    currentRoomId = roomId;
-    document.getElementById('room-id').textContent = roomId;
-    document.getElementById('room-id').textContent = roomId || "Unknown Room";
+socket.on('roomCreated', (data) => {
+    console.log("Received roomCreated data:", data);
+    currentRoomId = data.roomId;
+    updateRoomIdDisplay(currentRoomId);
+    document.getElementById('room-id').textContent = currentRoomId || "Unknown Room";
     document.getElementById('game-container').style.display = 'block';
-    alert(`New game created! Room ID is ${roomId}. Share this ID with your friends to join the game.`);
+    alert(`New game created! Room ID is ${currentRoomId}. Share this ID with your friends to join the game.`);
 });
+
 
 socket.on('newGame', (data) => {
     alert(`New game created! Room ID is ${data.roomId}. Share this ID with your friends to join the game.`);
@@ -68,34 +69,23 @@ socket.on('playerJoined', (data) => {
     console.log("Player Joined Event Triggered", data);
     currentRoomId = data.roomId;
     updateRoomIdDisplay(currentRoomId);
-    document.getElementById('room-id').textContent = data.roomId || "Unknown Room";  
+    document.getElementById('room-id').textContent = data.roomId || "Unknown Room";
     document.getElementById('game-container').style.display = 'block';
     setTimeout(() => {
         alert(`A new player has joined the game. Total players: ${data.players.length}`);
     }, 1000);
 });
 
-function generateCards() {
-    console.log("Generating cards...");
-    cards = [];
-    while (cards.length < level) {
-        let randomNumber = Math.floor(Math.random() * 100) + 1;
-        if (cards.indexOf(randomNumber) === -1) cards.push(randomNumber);
-    }
-    cards.sort((a, b) => a - b);
-    console.log("Generated cards:", cards);
-}
-
 function displayCards() {
     cardContainer.innerHTML = '';
     if (Array.isArray(cards)) {
         cards.forEach(card => {
-        let cardElement = document.createElement('div');
-        cardElement.className = 'card';
-        cardElement.textContent = card;
-        cardElement.onclick = () => playCard(card);
-        cardContainer.appendChild(cardElement)
-        cardElement.setAttribute('data-card-value', card);
+            let cardElement = document.createElement('div');
+            cardElement.className = 'card';
+            cardElement.textContent = card;
+            cardElement.onclick = () => playCard(card);
+            cardContainer.appendChild(cardElement);
+            cardElement.setAttribute('data-card-value', card);
         })
     } else {
         console.error('Cards is not an array:', cards);
@@ -103,22 +93,15 @@ function displayCards() {
 }
 
 function startGame() {
-    if (lives === 0) {
-        level = 1;
-        lives = 3;
-    }
     playedCards = [];
     updateStatusBar();
-    generateCards();
-    displayCards();
 }
 
 function playCard(card) {
     let index = cards.indexOf(card);
     if (index !== -1) {
-        playedCards.push(cards.splice(index, 1)[0]);
+        cards.splice(index, 1);
         displayCards();
-        checkOrder();
     }
 
     let lastPlayedCardElement = document.createElement('div');
@@ -133,32 +116,13 @@ function playCard(card) {
             card.style.transform = `translate(${index * 5}px, ${index * 5}px)`;
         });
     }
-
     applyStackingEffect();
     socket.emit('cardPlayed', { card, roomId: currentRoomId });
 }
 
-function checkOrder() {
-    if (playedCards.length === level) {
-        let sortedPlayedCards = [...playedCards].sort((a, b) => a - b);
-        if (JSON.stringify(sortedPlayedCards) === JSON.stringify(playedCards)) {
-            messageElement.textContent = 'Success! Moving to next level.';
-            level++;
-            playedCards = [];
-            setTimeout(startGame, 2000);
-        } else {
-            messageElement.textContent = 'Incorrect order. Try again.';
-            lives--;
-            if (lives === 0) {
-                messageElement.textContent = 'Game Over! Click "Start Game" to try again.';
-                setTimeout(startGame, 2000);
-            } else {
-                playedCards = [];
-                setTimeout(startGame, 2000);
-            }
-        }
-        updateStatusBar();
-    }
+function updateStatusBar() {
+    levelElement.textContent = 'Level: ' + (level || 'Unknown Level');
+    livesElement.textContent = 'Lives: ' + (lives || 'Unknown Lives');
 }
 
 function removeCardFromDisplay(cardValue) {
@@ -169,15 +133,15 @@ function removeCardFromDisplay(cardValue) {
 }
 
 function addCardToPlayedContainer(cardValue) {
-    let playedCardElement = document.createElement('div');
-    playedCardElement.className = 'played-card';
-    playedCardElement.textContent = cardValue;
-    playedCardContainer.appendChild(playedCardElement);
-}
-
-function updateStatusBar() {
-    levelElement.textContent = 'Level: ' + (level || 'Unknown Level');
-    livesElement.textContent = 'Lives: ' + (lives || 'Unknown Lives');
+    let playedCardContainer = document.getElementById('played-card-container');
+    if (playedCardContainer) {
+        let playedCardElement = document.createElement('div');
+        playedCardElement.className = 'played-card';
+        playedCardElement.textContent = cardValue;
+        playedCardContainer.appendChild(playedCardElement);
+    } else {
+        console.error('Played card container not found');
+    }
 }
 
 socket.on('gameState', (data) => {
@@ -194,31 +158,60 @@ socket.on('gameState', (data) => {
 
 socket.on('updateGameState', (updatedGameState) => {
     console.log('Received updatedGameState:', updatedGameState);
-    currentRoomId = updatedGameState.roomId;
-    cards = updatedGameState.cards;
-    playedCards = updatedGameState.playedCards;
-    level = updatedGameState.level;
-    lives = updatedGameState.lives;
-    displayCards();
-    updateStatusBar();
+    const { gameState } = updatedGameState;
+
+    if (gameState) {
+        currentRoomId = updatedGameState.roomId;
+        cards = gameState.playerCards[socket.id];
+        playedCards = updatedGameState.playedCards;
+        level = gameState.level;
+        lives = gameState.lives;
+        displayCards();
+        displayPlayedCards(playedCards);
+        updateStatusBar();
+    } else {
+        console.error('gameState is undefined:', updatedGameState);
+    }
 });
+
 
 socket.on('updateCard', (data) => {
-    const { card } = data;
-    removeCardFromDisplay(card);
-    addCardToPlayedContainer(card);
+    console.log(data);
+    const { card, playedCards: newPlayedCards, gameState } = data;
+
+    if (gameState) {
+        level = gameState.level;
+        lives = gameState.lives;
+        cards = gameState.playerCards[socket.id];
+        playedCards = newPlayedCards;
+
+        displayCards();
+        displayPlayedCards(playedCards);
+        updateStatusBar();
+    } else {
+        console.error('gameState is undefined:', data);
+    }
 });
 
+function displayPlayedCards(playedCards) {
+    let playedCardContainer = document.getElementById('played-card-container');
+    playedCardContainer.innerHTML = '';
+    playedCards.forEach(cardValue => {
+        let playedCardElement = document.createElement('div');
+        playedCardElement.className = 'played-card';
+        playedCardElement.textContent = cardValue;
+        playedCardContainer.appendChild(playedCardElement);
+    });
+}
+
 socket.on('gameStarted', (data) => {
-    console.log('Game is starting with initial card:', data.initialCard);
+    console.log('Game is starting with initial cards:', data.initialCards);
     level = data.gameState.level;
     lives = data.gameState.lives;
-    cards = [data.initialCard];
+    cards = data.initialCards;
     displayCards();
     updateStatusBar();
 });
-
-console.log('Current gameState', rooms[roomId].gameState);
 
 document.addEventListener('DOMContentLoaded', (event) => {
     const startButton = document.querySelector('button');

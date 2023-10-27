@@ -16,62 +16,100 @@ function generateRoomId() {
     return Math.random().toString(36).substr(2, 5).toUpperCase();
 }
 
-function changeTurn(roomId) {
+let rooms = {};
+
+function checkOrder(playedCards) {
+    const sortedPlayedCards = [...playedCards].sort((a, b) => a - b);
+    return JSON.stringify(sortedPlayedCards) === JSON.stringify(playedCards);
+}
+
+function advanceLevel(roomId) {
     const room = rooms[roomId];
     if (room) {
-        const players = room.players;
-        const gameState = room.gameState;
-        gameState.turn = (gameState.turn + 1) % players.length;
-        gameState.currentPlayer = players[gameState.turn];
-        io.sockets.in(roomId).emit('gameStateUpdated', gameState);
+        room.gameState.level++;
+        room.gameState.playedCards = [];
+        distributeCards(roomId);
     }
 }
 
-let rooms = {};
+function loseLife(roomId) {
+    const room = rooms[roomId];
+    if (room) {
+        room.gameState.lives--;
+        if (room.gameState.lives === 0) {
+            endGame(roomId);
+        } else {
+            room.gameState.playedCards = [];
+        }
+    }
+}
 
+function distributeCards(roomId) {
+    const room = rooms[roomId];
+    if (room) {
+        const level = room.gameState.level;
+        const players = room.players;
+        const totalCards = 100;
+
+        room.gameState.playerCards = {};
+
+        players.forEach(playerId => {
+            room.gameState.playerCards[playerId] = [];
+
+            for (let i = 0; i < level; i++) {
+                let card;
+                do {
+                    card = Math.floor(Math.random() * totalCards) + 1;
+                } while (isCardDistributed(roomId, card));
+                room.gameState.playerCards[playerId].push(card);
+            }
+        });
+
+        players.forEach(playerId => {
+            const socket = io.sockets.sockets.get(playerId);
+            if (socket) {
+                socket.emit('gameStarted', {
+                    message: 'Game has started',
+                    initialCards: room.gameState.playerCards[playerId],
+                    gameState: room.gameState
+                });
+            }
+        });
+    }
+}
+
+function isCardDistributed(roomId, card) {
+    const room = rooms[roomId];
+    if (room) {
+        for (let playerId in room.gameState.playerCards) {
+            if (room.gameState.playerCards[playerId].includes(card)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+function endGame(roomId) {
+    // No idea how yet
+}
 
 io.on('connection', (socket) => {
     console.log('New user connected with ID:', socket.id);
 
     socket.on('error', (error) => {
         console.error('Socket Error:', error);
-      });
-      
+    });
 
     socket.on('startGame', (data) => {
-    console.log('Received startGame event with data:', data);
-    const roomId = data.roomId;
+        console.log('Received startGame event with data:', data);
+        const roomId = data.roomId;
 
-    if (rooms[roomId]) {
-        const players = rooms[roomId].players;
-        const playerCards = {};
-        players.forEach(playerId => {
-            const card = Math.floor(Math.random() * 100) + 1;
-            playerCards[playerId] = card;
-        });
-
-        rooms[roomId].gameState = {
-            turn: 0,
-            currentPlayer: players[0],
-            playerCards,
-            playedCards: []
-        };
-
-        players.forEach(playerId => {
-            const socket = io.sockets.sockets.get(playerId);
-            socket.emit('gameStarted', {
-                message: 'Game has started',
-                initialCard: playerCards[playerId],
-                gameState: rooms[roomId].gameState
-            });
-        });
-    } else {
-        console.log(`Room ${roomId} not found.`);
-    }
-});
-
-    socket.on('disconnect', () => {
-        console.log('User disconnected');
+        if (rooms[roomId]) {
+            distributeCards(roomId);
+        } else {
+            console.log(`Room ${roomId} not found.`);
+        }
     });
 
     socket.on('joinGame', (data) => {
@@ -90,8 +128,7 @@ io.on('connection', (socket) => {
             console.log(`Room with ID ${roomId} does not exist.`);
         }
     });
-    
-    
+
     socket.on('disconnect', () => {
         console.log('User disconnected');
         for (let roomId in rooms) {
@@ -111,24 +148,40 @@ io.on('connection', (socket) => {
                 turn: 0,
                 currentPlayer: socket.id,
                 level: 1,
-                lives: 3 
+                lives: 3
             },
             playedCards: []
         };
         socket.join(roomId);
-        socket.emit('roomCreated', { roomId, gameState: rooms[roomId].gameState });        
+        socket.emit('roomCreated', { roomId, gameState: rooms[roomId].gameState });
     });
-    
 
     socket.on('cardPlayed', (data) => {
         const { card, roomId } = data;
-        const room = rooms[roomId]; 
-        
+        const room = rooms[roomId];
+
         if (room) {
             room.playedCards.push(card);
-            io.sockets.in(roomId).emit('updateCard', { card });
+
+            if (checkOrder(room.playedCards)) {
+                if (room.playedCards.length === room.gameState.level) {
+                    advanceLevel(roomId);
+                }
+            } else {
+                loseLife(roomId);
+            }
+            io.sockets.in(roomId).emit('updateCard', {
+                card,
+                playedCards: room.playedCards,
+                gameState: room.gameState
+            });
+            io.sockets.in(roomId).emit('updateCard', {
+                card,
+                playedCards: room.playedCards,
+                gameState: room.gameState
+            });
+
             io.sockets.in(roomId).emit('updateGameState', room);
-            changeTurn(roomId);
         }
     });
 });
